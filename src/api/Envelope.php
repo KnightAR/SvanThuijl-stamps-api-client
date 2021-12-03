@@ -421,7 +421,7 @@ class Envelope extends AbstractClient implements EnvelopeInterface
      */
     public function checkBalance()
     {
-        return $this->getBalance() >= 3;
+        return $this->getBalance() >= 3 || $this->isSampleOnly;
     }
 
     /**
