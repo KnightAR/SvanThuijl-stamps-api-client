@@ -210,6 +210,6 @@ class Address implements AddressInterface
      */
     public function getCountry()
     {
-        return $this->country;
+        return substr($this->country, 0, 2);
     }
 }

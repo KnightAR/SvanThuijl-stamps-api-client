@@ -46,6 +46,7 @@ abstract class AbstractClient implements ClientInterface
     {
         $this->soapClient = new SoapClient($this->apiUrl, [
             'exceptions' => true,
+            'trace' => true,
         ]);
     }
 
@@ -57,6 +58,7 @@ abstract class AbstractClient implements ClientInterface
         $this->apiUrl = $url;
         $this->soapClient = new SoapClient($this->apiUrl, [
             'exceptions' => true,
+            'trace' => true,
         ]);
 
         return $this;

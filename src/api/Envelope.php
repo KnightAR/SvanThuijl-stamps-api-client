@@ -341,7 +341,7 @@ class Envelope extends AbstractClient implements EnvelopeInterface
      */
     public function getPrintLayout()
     {
-        return $this->printLayout;
+        return $this->printLayout ?: self::RATE_PRINT_LAYOUT_NORMAL;
     }
 
     /**
@@ -443,53 +443,6 @@ class Envelope extends AbstractClient implements EnvelopeInterface
     public function getRateOptions()
     {
         $rateOptions = [
-            'FromZIPCode'  => substr($this->from->getZipcode(), 0, 3),
-            'ToZIPCode'    => $this->to->getZipcode(),
-            'ToCountry'    => $this->to->getCountry(),
-            'WeightOz'     => $this->weightOz,
-            'WeightLb'     => '0.0',
-            'ShipDate'     => $this->shipDate,
-            'ServiceType'  => $this->serviceType,
-            'PackageType'  => $this->packageType,
-            'PrintLayout'  => $this->printLayout,
-            'InsuredValue' => '0.0',
-            'AddOns'       => [],
-        ];
-
-        if (!$this->showPrice) {
-            $rateOptions['AddOns'][] = [
-                'AddOnType' => 'SC-A-HP' // Hide price on label
-            ];
-        }
-
-        $rates = $this->soapClient->GetRates([
-            'Authenticator' => $this->getAuthToken(),
-            'Rate'          => $rateOptions,
-        ]);
-        $this->setAuthToken($rates->Authenticator);
-
-        $rateOptions['Rate']['Amount'] = $rates->Rates->Rate->Amount;
-
-        return $rateOptions;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getEnvelope($filename = null)
-    {
-        if (!$this->checkBalance()) {
-            throw new ApiException('Insufficient funds');
-        }
-
-        $labelOptions = [
-            'Rate'           => $this->getRateOptions(),
-            'Authenticator'  => $this->getAuthToken(),
-            'IntegratorTxID' => time(),
-            'SampleOnly'     => $this->isSampleOnly,
-            'ImageType'      => $this->imageType,
-            'Mode'           => $this->mode,
-
             'From' => [
                 'FullName' => $this->from->getFullname(),
                 'Address1' => $this->from->getAddress1() ?? '',
@@ -512,12 +465,81 @@ class Envelope extends AbstractClient implements EnvelopeInterface
                 'ZIPCode'       => $this->to->getZipcode(),
                 'ZIPCodeAddOn'  => $this->to->getZipcodeAddOn(),
             ],
+            'ServiceType'  => $this->serviceType,
+            'WeightOz'     => $this->weightOz,
+            'WeightLb'     => '0.0',
+            'ShipDate'     => $this->shipDate,
+            'PackageType'  => $this->packageType,
+            'AddOns'       => [],
         ];
 
-        $indiciumResponse = $this->soapClient->CreateEnvelopeIndicium($labelOptions);
+        if (!$this->showPrice) {
+            $rateOptions['AddOns'][] = [
+                'AddOnType' => 'SC-A-HP' // Hide price on label
+            ];
+        }
+
+        $rates = $this->soapClient->GetRates([
+            'Authenticator' => $this->getAuthToken(),
+            'Rate'          => $rateOptions,
+        ]);
+
+        $this->setAuthToken($rates->Authenticator);
+
+        return $rateOptions;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getEnvelope($filename = null)
+    {
+        if (!$this->checkBalance()) {
+            throw new ApiException('Insufficient funds');
+        }
+
+        $labelOptions = [
+            'Authenticator'  => $this->getAuthToken(),
+            'IntegratorTxID' => microtime(true),
+            'Rate'           => [
+                'From' => [
+                    'FullName' => $this->from->getFullname(),
+                    'Address1' => $this->from->getAddress1() ?? '',
+                    'Address2' => $this->from->getAddress2() ?? '',
+                    'Address3' => $this->from->getAddress3() ?? '',
+                    'City'     => $this->from->getCity(),
+                    'Country'  => $this->from->getCountry(),
+                    'State'    => $this->from->getState(),
+                    'ZIPCode'  => $this->from->getZipcode(),
+                ],
+
+                'To' => [
+                    'FullName'      => $this->to->getFullname(),
+                    'Address1'      => $this->to->getAddress1() ?? '',
+                    'Address2'      => $this->to->getAddress2() ?? '',
+                    'Address3'      => $this->to->getAddress3() ?? '',
+                    'City'          => $this->to->getCity(),
+                    'Country'       => $this->to->getCountry(),
+                    'State'         => $this->to->getState(),
+                    'ZIPCode'       => $this->to->getZipcode(),
+                    'ZIPCodeAddOn'  => $this->to->getZipcodeAddOn(),
+                ],
+                'ServiceType'  => $this->serviceType,
+                'WeightOz'     => $this->weightOz,
+                'ShipDate'     => $this->shipDate,
+                'PackageType'  => $this->packageType,
+                'AddOns'       => [],
+            ],
+            'SampleOnly'     => $this->isSampleOnly ? 'true' : 'false',
+            'PrintLayout'    => $this->getPrintLayout(),
+            'ImageType'      => $this->getImageType(),
+        ];
+
+        $indiciumResponse = $this->soapClient->CreateIndicium($labelOptions);
         $this->setAuthToken($indiciumResponse->Authenticator);
 
-        if ($filename) {
+        if ($filename)
+        {
             $ch = curl_init($indiciumResponse->URL);
             $fp = fopen($filename, 'wb');
             curl_setopt($ch, CURLOPT_FILE, $fp);
@@ -535,7 +557,7 @@ class Envelope extends AbstractClient implements EnvelopeInterface
      */
     public function create($filename = null)
     {
-        return $this->getEnvelope($filename)->URL;
+        return $this->getEnvelope($filename);
     }
 
     /**
