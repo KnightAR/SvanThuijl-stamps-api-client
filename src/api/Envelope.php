@@ -487,7 +487,6 @@ class Envelope extends AbstractClient implements EnvelopeInterface
         $this->setAuthToken($rates->Authenticator);
 
         return $rates;
-
     }
 
     /**
